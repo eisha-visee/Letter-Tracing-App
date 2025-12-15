@@ -15,6 +15,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarStyle: { display: 'none' }, // Hide tab bar for this app
       }}>
       <Tabs.Screen
         name="index"
@@ -24,10 +25,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="letters"
+        options={{
+          href: null, // Hide from tab bar, accessible via router.push
+        }}
+      />
+      <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          href: null, // Hide from tab bar
         }}
       />
     </Tabs>
