@@ -1,59 +1,125 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Circle, G, Path, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Defs, G, LinearGradient, Path, Stop, Text as SvgText } from 'react-native-svg';
 import { colors } from '../constants/colors';
-import { Letter } from '../types/language';
+import { getLetterStrokes } from '../constants/letterStrokes';
+import { Letter, StrokePoint } from '../types/language';
 
 interface TracingCanvasProps {
     letter: Letter;
     onComplete: () => void;
 }
 
-const CANVAS_SIZE = Dimensions.get('window').width - 80;
+const CANVAS_SIZE = Dimensions.get('window').width - 60;
+const SVG_WIDTH = 300;
+const SVG_HEIGHT = 350;
 
 export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
-    const [currentStroke, setCurrentStroke] = useState(0);
-    const [userPath, setUserPath] = useState('');
-    const [isDrawing, setIsDrawing] = useState(false);
+    const [currentStrokeIndex, setCurrentStrokeIndex] = useState(0);
+    const [userPaths, setUserPaths] = useState<string[]>([]);
+    const [currentPath, setCurrentPath] = useState('');
+    const pathStarted = useRef(false);
 
-    // Generate letter outline path (simplified for demo)
-    const getLetterPath = () => {
-        const char = letter.uppercase || letter.character;
-        // This is a simplified representation
-        // In production, use actual SVG paths for each letter
-        return `M ${CANVAS_SIZE / 3} ${CANVAS_SIZE / 2} L ${(CANVAS_SIZE * 2) / 3} ${CANVAS_SIZE / 2}`;
+    // Reset state when letter changes
+    useEffect(() => {
+        setCurrentStrokeIndex(0);
+        setUserPaths([]);
+        setCurrentPath('');
+        pathStarted.current = false;
+    }, [letter]);
+
+    // Get stroke data for this letter
+    const strokes = getLetterStrokes(letter.uppercase || letter.character);
+
+    // If no strokes defined, show a simple message
+    if (!strokes || strokes.length === 0) {
+        return (
+            <View style={styles.container}>
+                <View style={styles.canvas}>
+                    <Text style={{ fontSize: 24, textAlign: 'center', padding: 20 }}>
+                        Stroke data not available for this letter yet.{'\n'}
+                        Coming soon!
+                    </Text>
+                </View>
+            </View>
+        );
+    }
+
+    // Convert SVG path points to Path d string
+    const pointsToPath = (points: StrokePoint[]): string => {
+        if (points.length === 0) return '';
+        const path = points.map((point, index) => {
+            return index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`;
+        });
+        return path.join(' ');
+    };
+
+    // Calculate distance between two points
+    const distance = (p1: StrokePoint, p2: StrokePoint): number => {
+        return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+    };
+
+    // Check if user is near the stroke start point
+    const isNearStartPoint = (touchPoint: StrokePoint, startPoint: StrokePoint): boolean => {
+        return distance(touchPoint, startPoint) < 40; // 40 unit tolerance
+    };
+
+    // Check if stroke is complete
+    const isStrokeComplete = (path: string): boolean => {
+        // Simple validation: check if path has sufficient length
+        return path.length > 50;
     };
 
     const pan = Gesture.Pan()
-        .onStart(() => {
-            setIsDrawing(true);
-            setUserPath('');
-        })
-        .onUpdate((event) => {
+        .runOnJS(true)
+        .onStart((event) => {
             const { x, y } = event;
-            if (isDrawing) {
-                setUserPath((prev) => {
-                    if (prev === '') {
-                        return `M ${x} ${y}`;
-                    }
-                    return `${prev} L ${x} ${y}`;
-                });
+            const scale = SVG_WIDTH / CANVAS_SIZE;
+            const svgX = x * scale;
+            const svgY = y * scale;
+
+            if (currentStrokeIndex >= strokes.length) return;
+
+            const currentStroke = strokes[currentStrokeIndex];
+
+            // Check if starting near the correct point
+            if (isNearStartPoint({ x: svgX, y: svgY }, currentStroke.startPoint)) {
+                pathStarted.current = true;
+                setCurrentPath(`M ${svgX} ${svgY}`);
             }
         })
+        .onUpdate((event) => {
+            if (!pathStarted.current) return;
+
+            const { x, y } = event;
+            const scale = SVG_WIDTH / CANVAS_SIZE;
+            const svgX = x * scale;
+            const svgY = y * scale;
+
+            setCurrentPath((prev) => `${prev} L ${svgX} ${svgY}`);
+        })
         .onEnd(() => {
-            setIsDrawing(false);
-            // Simplified stroke validation
-            if (userPath.length > 50) {
-                if (currentStroke < letter.strokes.length - 1) {
-                    setCurrentStroke(currentStroke + 1);
-                    setUserPath('');
+            if (!pathStarted.current) return;
+
+            // Validate the stroke
+            if (isStrokeComplete(currentPath)) {
+                // Stroke completed successfully
+                setUserPaths([...userPaths, currentPath]);
+                setCurrentPath('');
+                pathStarted.current = false;
+
+                // Move to next stroke or complete letter
+                if (currentStrokeIndex < strokes.length - 1) {
+                    setCurrentStrokeIndex(currentStrokeIndex + 1);
                 } else {
                     // Letter complete!
-                    setTimeout(() => {
-                        onComplete();
-                    }, 500);
+                    onComplete();
                 }
+            } else {
+                // Stroke invalid, reset
+                setCurrentPath('');
+                pathStarted.current = false;
             }
         });
 
@@ -62,62 +128,96 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
             <View style={styles.canvasWrapper}>
                 <GestureDetector gesture={pan}>
                     <View style={styles.canvas}>
-                        <Svg width={CANVAS_SIZE} height={CANVAS_SIZE}>
-                            {/* Letter outline (dashed) */}
-                            <G>
-                                <SvgText
-                                    x={CANVAS_SIZE / 2}
-                                    y={CANVAS_SIZE / 2 + 60}
-                                    fontSize="180"
-                                    fontWeight="900"
-                                    fill="none"
-                                    stroke={colors.strokeGray}
-                                    strokeWidth="8"
-                                    strokeDasharray="15,10"
-                                    textAnchor="middle"
-                                    opacity={0.5}
-                                >
-                                    {letter.uppercase || letter.character}
-                                </SvgText>
-                            </G>
+                        <Svg width={CANVAS_SIZE} height={(CANVAS_SIZE * SVG_HEIGHT) / SVG_WIDTH} viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}>
+                            <Defs>
+                                <LinearGradient id="strokeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <Stop offset="0%" stopColor={colors.orange} stopOpacity="0.8" />
+                                    <Stop offset="100%" stopColor={colors.darkOrange} stopOpacity="1" />
+                                </LinearGradient>
+                            </Defs>
 
-                            {/* Stroke start points */}
-                            {letter.strokes.map((stroke, index) => (
-                                <Circle
-                                    key={`start-${index}`}
-                                    cx={stroke.startPoint.x}
-                                    cy={stroke.startPoint.y}
-                                    r={12}
-                                    fill={index === currentStroke ? colors.orange : colors.strokeGray}
-                                    opacity={index <= currentStroke ? 1 : 0.3}
+                            {/* Render all strokes */}
+                            {strokes.map((stroke, index) => {
+                                const isActive = index === currentStrokeIndex;
+                                const isCompleted = index < currentStrokeIndex;
+                                const opacity = isCompleted ? 0.3 : isActive ? 1 : 0.5;
+
+                                return (
+                                    <G key={stroke.id} opacity={opacity}>
+                                        {/* Background guide line */}
+                                        <Path
+                                            d={pointsToPath(stroke.points)}
+                                            stroke={isCompleted ? colors.strokeComplete : '#d0d0d0'}
+                                            strokeWidth={24}
+                                            strokeLinecap="round"
+                                            fill="none"
+                                        />
+
+                                        {/* Dashed center line */}
+                                        <Path
+                                            d={pointsToPath(stroke.points)}
+                                            stroke={isActive ? colors.orange : '#999'}
+                                            strokeWidth={4}
+                                            strokeLinecap="round"
+                                            strokeDasharray="12,12"
+                                            fill="none"
+                                        />
+
+                                        {/* Start point indicator */}
+                                        <Circle
+                                            cx={stroke.startPoint.x}
+                                            cy={stroke.startPoint.y}
+                                            r={isActive ? 18 : 14}
+                                            fill={isActive ? colors.orange : isCompleted ? colors.strokeComplete : '#999'}
+                                        />
+
+                                        {/* Stroke number */}
+                                        <SvgText
+                                            x={stroke.startPoint.x}
+                                            y={stroke.startPoint.y + 6}
+                                            fontSize={isActive ? 16 : 14}
+                                            fontWeight="bold"
+                                            fill="white"
+                                            textAnchor="middle"
+                                        >
+                                            {stroke.id}
+                                        </SvgText>
+
+                                        {/* Direction arrow for active stroke */}
+                                        {isActive && stroke.points.length >= 2 && (
+                                            <Path
+                                                d={`M ${stroke.points[0].x - 10} ${stroke.points[0].y + 30} L ${stroke.points[0].x} ${stroke.points[0].y + 50} L ${stroke.points[0].x + 10} ${stroke.points[0].y + 30} Z`}
+                                                fill={colors.orange}
+                                                opacity={0.8}
+                                            />
+                                        )}
+                                    </G>
+                                );
+                            })}
+
+                            {/* Completed user strokes */}
+                            {userPaths.map((path, index) => (
+                                <Path
+                                    key={`completed-${index}`}
+                                    d={path}
+                                    stroke="url(#strokeGradient)"
+                                    strokeWidth={18}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    fill="none"
+                                    opacity={0.9}
                                 />
                             ))}
 
-                            {/* Stroke numbers */}
-                            {letter.strokes.map((stroke, index) => (
-                                <SvgText
-                                    key={`num-${index}`}
-                                    x={stroke.startPoint.x}
-                                    y={stroke.startPoint.y + 5}
-                                    fontSize="14"
-                                    fontWeight="bold"
-                                    fill={colors.white}
-                                    textAnchor="middle"
-                                    opacity={index <= currentStroke ? 1 : 0.3}
-                                >
-                                    {index + 1}
-                                </SvgText>
-                            ))}
-
-                            {/* User's drawn path */}
-                            {userPath && (
+                            {/* Current drawing path */}
+                            {currentPath && (
                                 <Path
-                                    d={userPath}
-                                    stroke={colors.strokeActive}
-                                    strokeWidth="12"
-                                    fill="none"
+                                    d={currentPath}
+                                    stroke={colors.orange}
+                                    strokeWidth={18}
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
+                                    fill="none"
                                 />
                             )}
                         </Svg>
@@ -137,8 +237,10 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
                 </View>
             </View>
 
-            <View style={styles.instruction}>
-                <Text style={styles.instructionText}>Follow the numbers!</Text>
+            {/* Instruction hint */}
+            <View style={styles.hintContainer}>
+                <Text style={styles.hintIcon}>👆</Text>
+                <Text style={styles.hintText}>Start from number {currentStrokeIndex + 1}</Text>
             </View>
         </View>
     );
@@ -153,46 +255,41 @@ const styles = StyleSheet.create({
     },
     canvas: {
         width: CANVAS_SIZE,
-        height: CANVAS_SIZE,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        aspectRatio: SVG_WIDTH / SVG_HEIGHT,
+        backgroundColor: 'rgba(255, 255, 255, 0.98)',
         borderRadius: 30,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-    instruction: {
-        marginTop: 20,
-    },
-    instructionText: {
-        fontSize: 18,
-        color: colors.mediumGray,
-        fontWeight: '600',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
+        borderWidth: 4,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
     },
     helperCard: {
         position: 'absolute',
-        bottom: -30,
+        bottom: -20,
         right: -10,
         alignItems: 'center',
+        transform: [{ rotate: '6deg' }],
     },
     helperImage: {
-        width: 80,
-        height: 80,
+        width: 90,
+        height: 90,
         borderRadius: 20,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        backgroundColor: 'rgba(255, 245, 230, 0.95)',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 3,
         borderColor: colors.white,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 5,
     },
     emoji: {
-        fontSize: 40,
+        fontSize: 48,
     },
     helperBadge: {
         marginTop: 8,
@@ -200,10 +297,30 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     helperText: {
         color: colors.white,
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '700',
+    },
+    hintContainer: {
+        marginTop: 24,
+        alignItems: 'center',
+    },
+    hintIcon: {
+        fontSize: 32,
+        marginBottom: 8,
+    },
+    hintText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: colors.orange,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
     },
 });
