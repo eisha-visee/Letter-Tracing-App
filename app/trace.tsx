@@ -5,12 +5,13 @@ import { getLanguageById } from '@/constants/languageData';
 import { useApp } from '@/contexts/AppContext';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TraceScreen() {
     const router = useRouter();
+    const [resetKey, setResetKey] = useState(0);
     const {
         selectedLanguage,
         currentLetterIndex,
@@ -54,8 +55,8 @@ export default function TraceScreen() {
     };
 
     const handleReset = () => {
-        // Force re-render by creating a new component instance
-        setCurrentLetterIndex(currentLetterIndex);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setResetKey((prev: number) => prev + 1);
     };
 
     return (
@@ -86,7 +87,11 @@ export default function TraceScreen() {
 
             {/* Tracing Canvas */}
             <View style={styles.canvasContainer}>
-                <TracingCanvas letter={currentLetter} onComplete={handleComplete} />
+                <TracingCanvas
+                    key={`${currentLetter.character}-${resetKey}`}
+                    letter={currentLetter}
+                    onComplete={handleComplete}
+                />
             </View>
 
             {/* Bottom Actions */}
@@ -162,35 +167,35 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 30,
-        paddingBottom: 40,
-        gap: 20,
+        paddingHorizontal: 40,
+        paddingBottom: 30,
+        gap: 16,
     },
     resetButton: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.white,
-        paddingHorizontal: 24,
-        paddingVertical: 16,
-        borderRadius: 30,
-        gap: 8,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 25,
+        gap: 6,
         borderWidth: 2,
         borderColor: colors.mediumGray,
     },
     resetIcon: {
-        fontSize: 20,
+        fontSize: 18,
         color: colors.mediumGray,
     },
     resetText: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '700',
         color: colors.mediumGray,
     },
     nextButton: {
         flex: 1,
         backgroundColor: colors.orange,
-        paddingVertical: 18,
-        borderRadius: 30,
+        paddingVertical: 14,
+        borderRadius: 25,
         alignItems: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
@@ -200,7 +205,9 @@ const styles = StyleSheet.create({
     },
     nextButtonText: {
         color: colors.white,
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '900',
     },
 });
+
+

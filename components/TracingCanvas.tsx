@@ -183,14 +183,6 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
                                             {stroke.id}
                                         </SvgText>
 
-                                        {/* Direction arrow for active stroke */}
-                                        {isActive && stroke.points.length >= 2 && (
-                                            <Path
-                                                d={`M ${stroke.points[0].x - 10} ${stroke.points[0].y + 30} L ${stroke.points[0].x} ${stroke.points[0].y + 50} L ${stroke.points[0].x + 10} ${stroke.points[0].y + 30} Z`}
-                                                fill={colors.orange}
-                                                opacity={0.8}
-                                            />
-                                        )}
                                     </G>
                                 );
                             })}
@@ -223,7 +215,10 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
                         </Svg>
                     </View>
                 </GestureDetector>
+            </View>
 
+            {/* Bottom Info Row: Helper Card + Instruction */}
+            <View style={styles.bottomInfoContainer}>
                 {/* Helper card with image */}
                 <View style={styles.helperCard}>
                     <View style={styles.helperImage}>
@@ -235,12 +230,12 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
                         </Text>
                     </View>
                 </View>
-            </View>
 
-            {/* Instruction hint */}
-            <View style={styles.hintContainer}>
-                <Text style={styles.hintIcon}>👆</Text>
-                <Text style={styles.hintText}>Start from number {currentStrokeIndex + 1}</Text>
+                {/* Instruction hint */}
+                <View style={styles.hintContainer}>
+                    <Text style={styles.hintIcon}>👆</Text>
+                    <Text style={styles.hintText}>Start {currentStrokeIndex + 1}</Text>
+                </View>
             </View>
         </View>
     );
@@ -249,9 +244,11 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
 const styles = StyleSheet.create({
     container: {
         alignItems: 'center',
+        width: '100%',
     },
     canvasWrapper: {
         position: 'relative',
+        zIndex: 1,
     },
     canvas: {
         width: CANVAS_SIZE,
@@ -266,17 +263,23 @@ const styles = StyleSheet.create({
         borderWidth: 4,
         borderColor: 'rgba(255, 255, 255, 0.5)',
     },
-    helperCard: {
-        position: 'absolute',
-        bottom: -20,
-        right: -10,
+    bottomInfoContainer: {
+        flexDirection: 'row',
         alignItems: 'center',
-        transform: [{ rotate: '6deg' }],
+        justifyContent: 'center',
+        width: '100%',
+        marginTop: 20,
+        paddingHorizontal: 20,
+        gap: 20,
+    },
+    helperCard: {
+        alignItems: 'center',
+        transform: [{ rotate: '-3deg' }],
     },
     helperImage: {
-        width: 90,
-        height: 90,
-        borderRadius: 20,
+        width: 80,
+        height: 80,
+        borderRadius: 18,
         backgroundColor: 'rgba(255, 245, 230, 0.95)',
         justifyContent: 'center',
         alignItems: 'center',
@@ -284,40 +287,44 @@ const styles = StyleSheet.create({
         borderColor: colors.white,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 5,
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 4,
     },
     emoji: {
-        fontSize: 48,
+        fontSize: 42,
     },
     helperBadge: {
-        marginTop: 8,
+        marginTop: -10,
         backgroundColor: colors.orange,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowRadius: 3,
         elevation: 2,
+        zIndex: 2,
     },
     helperText: {
         color: colors.white,
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: '700',
     },
     hintContainer: {
-        marginTop: 24,
         alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+        padding: 12,
+        borderRadius: 20,
+        minWidth: 100,
     },
     hintIcon: {
-        fontSize: 32,
-        marginBottom: 8,
+        fontSize: 24,
+        marginBottom: 4,
     },
     hintText: {
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: '700',
         color: colors.orange,
         textTransform: 'uppercase',
