@@ -7,7 +7,7 @@ export const colors = {
     vibrantGreen: '#7ec850',
 
     // Accent colors
-    orange: '#ff8c42',
+    orange: '#F78F1E',
     darkOrange: '#ff6b1a',
     yellow: '#ffc857',
 
@@ -23,7 +23,7 @@ export const colors = {
 
     // Strokes & paths
     strokeGray: '#d0d0d0',
-    strokeActive: '#ff8c42',
+    strokeActive: '#F78F1E',
     strokeComplete: '#7ec850',
 
     // Progress

@@ -2,11 +2,13 @@ import * as Haptics from 'expo-haptics';
 import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedProps, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, G, LinearGradient, Path, Stop, Text as SvgText } from 'react-native-svg';
 import { colors } from '../constants/colors';
 import { getLetterStrokes } from '../constants/letterStrokes';
 import { Letter, StrokePoint } from '../types/language';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface TracingCanvasProps {
     letter: Letter;
@@ -17,11 +19,37 @@ const CANVAS_SIZE = Dimensions.get('window').width - 60;
 const SVG_WIDTH = 300;
 const SVG_HEIGHT = 350;
 
+
+
 export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
+    // ... existing state ...
     const [currentStrokeIndex, setCurrentStrokeIndex] = useState(0);
     const [userPaths, setUserPaths] = useState<string[]>([]);
     const [currentPath, setCurrentPath] = useState('');
     const pathStarted = useRef(false);
+
+
+
+    // Animation values
+    const shakeOffset = useSharedValue(0);
+    const pulse = useSharedValue(1);
+
+    // Start pulse animation
+    useEffect(() => {
+        pulse.value = withRepeat(withTiming(1.2, { duration: 800 }), -1, true);
+    }, []);
+
+    const animatedCircleProps = useAnimatedProps(() => ({
+        r: 18 * pulse.value,
+    }));
+
+    const animatedStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ translateX: shakeOffset.value }],
+        };
+    });
+
+    // ... existing functions (reset, stroke logic) ...
 
     // Reset state when letter changes
     useEffect(() => {
@@ -30,6 +58,8 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
         setCurrentPath('');
         pathStarted.current = false;
     }, [letter]);
+
+
 
     // Get stroke data for this letter
     const strokes = getLetterStrokes(letter.uppercase || letter.character);
@@ -48,13 +78,26 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
         );
     }
 
-    // Convert SVG path points to Path d string
+    // Convert SVG path points to Path d string with smoothing
     const pointsToPath = (points: StrokePoint[]): string => {
         if (points.length === 0) return '';
-        const path = points.map((point, index) => {
-            return index === 0 ? `M ${point.x} ${point.y}` : `L ${point.x} ${point.y}`;
-        });
-        return path.join(' ');
+        if (points.length < 3) {
+            return points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
+        }
+
+        const p = points;
+        let d = `M ${p[0].x} ${p[0].y}`;
+
+        for (let i = 1; i < p.length - 1; i++) {
+            const midX = (p[i].x + p[i + 1].x) / 2;
+            const midY = (p[i].y + p[i + 1].y) / 2;
+            // Q controlPoint endPoint
+            d += ` Q ${p[i].x} ${p[i].y} ${midX} ${midY}`;
+        }
+
+        // Line to the last point
+        d += ` L ${p[p.length - 1].x} ${p[p.length - 1].y}`;
+        return d;
     };
 
     // Calculate distance between two points
@@ -96,13 +139,7 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
         return distance(lastPoint, targetEnd) < 50;
     };
 
-    const shakeOffset = useSharedValue(0);
 
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            transform: [{ translateX: shakeOffset.value }],
-        };
-    });
 
     const handleMistake = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -228,12 +265,22 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
                                         />
 
                                         {/* Start point indicator */}
-                                        <Circle
-                                            cx={stroke.startPoint.x}
-                                            cy={stroke.startPoint.y}
-                                            r={isActive ? 18 : 14}
-                                            fill={isActive ? colors.orange : isCompleted ? colors.strokeComplete : '#999'}
-                                        />
+                                        {isActive ? (
+                                            <AnimatedCircle
+                                                cx={stroke.startPoint.x}
+                                                cy={stroke.startPoint.y}
+                                                fill={colors.orange}
+                                                animatedProps={animatedCircleProps}
+                                            />
+                                        ) : (
+                                            <Circle
+                                                cx={stroke.startPoint.x}
+                                                cy={stroke.startPoint.y}
+                                                r={isCompleted ? 0 : 14} // Hide start point if completed? Or keep generic. User HTML shows active one large.
+                                                fill={isCompleted ? colors.strokeComplete : '#999'}
+                                                opacity={isCompleted ? 0 : 1} // Hide passed start points to clean up UI
+                                            />
+                                        )}
 
                                         {/* Stroke number */}
                                         <SvgText

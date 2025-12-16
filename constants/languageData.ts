@@ -47,7 +47,7 @@ export const languages: Language[] = [
         name: 'Hindi',
         nativeName: 'हिंदी',
         subtitle: 'अ से अनार',
-        icon: '🥭', // Using mango as icon
+        icon: '🍅', // Using pomogranate as icon
         letters: [], // Will be populated when Hindi data is available
     },
     {
@@ -55,8 +55,65 @@ export const languages: Language[] = [
         name: 'Kannada',
         nativeName: 'ಕನ್ನಡ',
         subtitle: 'ಅ ಆ ಇ ಈ',
-        icon: '🥥', // Using coconut as icon
-        letters: [], // Will be populated when Kannada data is available
+        icon: '🤴', // Using king as icon
+        letters: [
+            // -------- VOWELS --------
+            { character: 'ಅ', strokes: getLetterStrokes('ಅ'), image: '👩', word: 'AMMA' },
+            { character: 'ಆ', strokes: getLetterStrokes('ಆ'), image: '🐘', word: 'AANE' },
+            { character: 'ಇ', strokes: getLetterStrokes('ಇ'), image: '🐀', word: 'ILI' },
+            { character: 'ಈ', strokes: getLetterStrokes('ಈ'), image: '🪶', word: 'EEGA' },
+            { character: 'ಉ', strokes: getLetterStrokes('ಉ'), image: '🐪', word: 'UNTE' },
+            { character: 'ಊ', strokes: getLetterStrokes('ಊ'), image: '🎀', word: 'OORA' },
+            { character: 'ಋ', strokes: getLetterStrokes('ಋ'), image: '🧘', word: 'RUSHI' },
+            { character: 'ಎ', strokes: getLetterStrokes('ಎ'), image: '🍃', word: 'ELE' },
+            { character: 'ಏ', strokes: getLetterStrokes('ಏ'), image: '🦀', word: 'ERU' },
+            { character: 'ಐ', strokes: getLetterStrokes('ಐ'), image: '🪞', word: 'AINE' },
+            { character: 'ಒ', strokes: getLetterStrokes('ಒ'), image: '🪔', word: 'ONDE' },
+            { character: 'ಓ', strokes: getLetterStrokes('ಓ'), image: '🪁', word: 'OOTA' },
+            { character: 'ಔ', strokes: getLetterStrokes('ಔ'), image: '💊', word: 'OUSHADHA' },
+
+            // -------- CONSONANTS --------
+            { character: 'ಕ', strokes: getLetterStrokes('ಕ'), image: '🐦', word: 'KOKILA' },
+            { character: 'ಖ', strokes: getLetterStrokes('ಖ'), image: '🪖', word: 'KHADGA' },
+            { character: 'ಗ', strokes: getLetterStrokes('ಗ'), image: '🐄', word: 'GAVU' },
+            { character: 'ಘ', strokes: getLetterStrokes('ಘ'), image: '🏠', word: 'GHARA' },
+            { character: 'ಙ', strokes: getLetterStrokes('ಙ'), image: '🐍', word: 'NAGA' },
+
+            { character: 'ಚ', strokes: getLetterStrokes('ಚ'), image: '🌙', word: 'CHANDRA' },
+            { character: 'ಛ', strokes: getLetterStrokes('ಛ'), image: '☂️', word: 'CHHATRA' },
+            { character: 'ಜ', strokes: getLetterStrokes('ಜ'), image: '🌍', word: 'JAGATTU' },
+            { character: 'ಝ', strokes: getLetterStrokes('ಝ'), image: '💥', word: 'JHANKARA' },
+            { character: 'ಞ', strokes: getLetterStrokes('ಞ'), image: '🧠', word: 'JNANA' },
+
+            { character: 'ಟ', strokes: getLetterStrokes('ಟ'), image: '🛒', word: 'TANGA' },
+            { character: 'ಠ', strokes: getLetterStrokes('ಠ'), image: '🧱', word: 'THATTANE' },
+            { character: 'ಡ', strokes: getLetterStrokes('ಡ'), image: '🥁', word: 'DAMARU' },
+            { character: 'ಢ', strokes: getLetterStrokes('ಢ'), image: '🪵', word: 'DHADHA' },
+            { character: 'ಣ', strokes: getLetterStrokes('ಣ'), image: '🐒', word: 'NANDI' },
+
+            { character: 'ತ', strokes: getLetterStrokes('ತ'), image: '⭐', word: 'TARE' },
+            { character: 'ಥ', strokes: getLetterStrokes('ಥ'), image: '🏹', word: 'THORANA' },
+            { character: 'ದ', strokes: getLetterStrokes('ದ'), image: '🪔', word: 'DEEPA' },
+            { character: 'ಧ', strokes: getLetterStrokes('ಧ'), image: '🌾', word: 'DHANYA' },
+            { character: 'ನ', strokes: getLetterStrokes('ನ'), image: '🐍', word: 'NAGA' },
+
+            { character: 'ಪ', strokes: getLetterStrokes('ಪ'), image: '🦋', word: 'PATANGA' },
+            { character: 'ಫ', strokes: getLetterStrokes('ಫ'), image: '🍎', word: 'PHALA' },
+            { character: 'ಬ', strokes: getLetterStrokes('ಬ'), image: '🏹', word: 'BANA' },
+            { character: 'ಭ', strokes: getLetterStrokes('ಭ'), image: '🌍', word: 'BHUMI' },
+            { character: 'ಮ', strokes: getLetterStrokes('ಮ'), image: '🐟', word: 'MEENU' },
+
+            { character: 'ಯ', strokes: getLetterStrokes('ಯ'), image: '🧘', word: 'YOGA' },
+            { character: 'ರ', strokes: getLetterStrokes('ರ'), image: '🌞', word: 'RAVI' },
+            { character: 'ಲ', strokes: getLetterStrokes('ಲ'), image: '🍃', word: 'LEAFU' },
+            { character: 'ವ', strokes: getLetterStrokes('ವ'), image: '🌧️', word: 'VARSHA' },
+
+            { character: 'ಶ', strokes: getLetterStrokes('ಶ'), image: '🐯', word: 'SHERU' },
+            { character: 'ಷ', strokes: getLetterStrokes('ಷ'), image: '🧠', word: 'SHASTRA' },
+            { character: 'ಸ', strokes: getLetterStrokes('ಸ'), image: '🐍', word: 'SARPA' },
+            { character: 'ಹ', strokes: getLetterStrokes('ಹ'), image: '🌸', word: 'HOOVA' },
+            { character: 'ಳ', strokes: getLetterStrokes('ಳ'), image: '🔔', word: 'LALITA' },
+        ],
     },
 ];
 
