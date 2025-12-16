@@ -47,7 +47,7 @@ export const languages: Language[] = [
         name: 'Hindi',
         nativeName: 'हिंदी',
         subtitle: 'अ से अनार',
-        icon: '🍅', // Using pomogranate as icon
+        icon: '🍍', // Using pineapple as icon
         letters: [], // Will be populated when Hindi data is available
     },
     {
