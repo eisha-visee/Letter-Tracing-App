@@ -1,6 +1,8 @@
+import * as Haptics from 'expo-haptics';
 import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, G, LinearGradient, Path, Stop, Text as SvgText } from 'react-native-svg';
 import { colors } from '../constants/colors';
 import { getLetterStrokes } from '../constants/letterStrokes';
@@ -60,15 +62,59 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
         return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
     };
 
+    // Calculate distance from point P to line segment AB
+    const distanceToSegment = (p: StrokePoint, a: StrokePoint, b: StrokePoint): number => {
+        const l2 = Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2);
+        if (l2 === 0) return distance(p, a);
+        let t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return distance(p, { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) });
+    };
+
+    // Check if point is close enough to any segment of the stroke
+    const isPointNearStroke = (point: StrokePoint, strokePoints: StrokePoint[], threshold = 60): boolean => {
+        // If stroke has only 1 point?
+        if (strokePoints.length < 2) return distance(point, strokePoints[0]) < threshold;
+
+        for (let i = 0; i < strokePoints.length - 1; i++) {
+            if (distanceToSegment(point, strokePoints[i], strokePoints[i + 1]) < threshold) {
+                return true;
+            }
+        }
+        return false;
+    };
+
     // Check if user is near the stroke start point
     const isNearStartPoint = (touchPoint: StrokePoint, startPoint: StrokePoint): boolean => {
         return distance(touchPoint, startPoint) < 40; // 40 unit tolerance
     };
 
     // Check if stroke is complete
-    const isStrokeComplete = (path: string): boolean => {
-        // Simple validation: check if path has sufficient length
-        return path.length > 50;
+    // Check if stroke is complete
+    const isStrokeComplete = (path: string, lastPoint: StrokePoint, targetEnd: StrokePoint): boolean => {
+        // Must be close to the end point
+        return distance(lastPoint, targetEnd) < 50;
+    };
+
+    const shakeOffset = useSharedValue(0);
+
+    const animatedStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ translateX: shakeOffset.value }],
+        };
+    });
+
+    const handleMistake = () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        shakeOffset.value = withSequence(
+            withTiming(-10, { duration: 50 }),
+            withTiming(10, { duration: 50 }),
+            withTiming(-10, { duration: 50 }),
+            withTiming(10, { duration: 50 }),
+            withTiming(0, { duration: 50 })
+        );
+        setCurrentPath('');
+        pathStarted.current = false;
     };
 
     const pan = Gesture.Pan()
@@ -87,6 +133,11 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
             if (isNearStartPoint({ x: svgX, y: svgY }, currentStroke.startPoint)) {
                 pathStarted.current = true;
                 setCurrentPath(`M ${svgX} ${svgY}`);
+            } else {
+                // Initial touch validation? Optional. 
+                // If they touch completely elsewhere, maybe shake?
+                // For now, only shake if they start drawing and deviate.
+                // Actually user request: "Trace outside path... detected as incorrect"
             }
         })
         .onUpdate((event) => {
@@ -97,13 +148,27 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
             const svgX = x * scale;
             const svgY = y * scale;
 
+            const currentStroke = strokes[currentStrokeIndex];
+
+            // Validate scribble
+            if (!isPointNearStroke({ x: svgX, y: svgY }, currentStroke.points)) {
+                handleMistake();
+                return;
+            }
+
             setCurrentPath((prev) => `${prev} L ${svgX} ${svgY}`);
         })
-        .onEnd(() => {
+        .onEnd((event) => {
             if (!pathStarted.current) return;
 
-            // Validate the stroke
-            if (isStrokeComplete(currentPath)) {
+            const scale = SVG_WIDTH / CANVAS_SIZE;
+            const svgX = event.x * scale;
+            const svgY = event.y * scale;
+            const currentStroke = strokes[currentStrokeIndex];
+            const endPoint = currentStroke.points[currentStroke.points.length - 1];
+
+            // Validate if completed
+            if (isStrokeComplete(currentPath, { x: svgX, y: svgY }, endPoint)) {
                 // Stroke completed successfully
                 setUserPaths([...userPaths, currentPath]);
                 setCurrentPath('');
@@ -117,9 +182,8 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
                     onComplete();
                 }
             } else {
-                // Stroke invalid, reset
-                setCurrentPath('');
-                pathStarted.current = false;
+                // Stroke invalid (incomplete), reset
+                handleMistake();
             }
         });
 
@@ -127,7 +191,7 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
         <View style={styles.container}>
             <View style={styles.canvasWrapper}>
                 <GestureDetector gesture={pan}>
-                    <View style={styles.canvas}>
+                    <Animated.View style={[styles.canvas, animatedStyle]}>
                         <Svg width={CANVAS_SIZE} height={(CANVAS_SIZE * SVG_HEIGHT) / SVG_WIDTH} viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}>
                             <Defs>
                                 <LinearGradient id="strokeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -213,7 +277,7 @@ export const TracingCanvas = ({ letter, onComplete }: TracingCanvasProps) => {
                                 />
                             )}
                         </Svg>
-                    </View>
+                    </Animated.View>
                 </GestureDetector>
             </View>
 

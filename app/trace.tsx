@@ -7,11 +7,13 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TraceScreen() {
     const router = useRouter();
     const [resetKey, setResetKey] = useState(0);
+    const confettiRef = React.useRef<ConfettiCannon>(null);
     const {
         selectedLanguage,
         currentLetterIndex,
@@ -28,17 +30,18 @@ export default function TraceScreen() {
 
     const handleComplete = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        confettiRef.current?.start();
         markLetterComplete(currentLetter.character);
 
         // Auto advance to next letter or return to grid
         if (currentLetterIndex < language.letters.length - 1) {
             setTimeout(() => {
                 setCurrentLetterIndex(currentLetterIndex + 1);
-            }, 1000);
+            }, 2500); // Increased delay to enjoy confetti
         } else {
             setTimeout(() => {
                 router.back();
-            }, 1000);
+            }, 2500);
         }
     };
 
@@ -105,6 +108,14 @@ export default function TraceScreen() {
                     <Text style={styles.nextButtonText}>Next →</Text>
                 </Pressable>
             </View>
+
+            <ConfettiCannon
+                ref={confettiRef}
+                count={200}
+                origin={{ x: -10, y: 0 }}
+                autoStart={false}
+                fadeOut={true}
+            />
         </SafeAreaView>
     );
 }
