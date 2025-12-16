@@ -4,7 +4,7 @@ import { languages } from '@/constants/languageData';
 import { useApp } from '@/contexts/AppContext';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -28,7 +28,11 @@ export default function HomeScreen() {
 
         {/* Mascot */}
         <View style={styles.mascotContainer}>
-          <Text style={styles.mascot}>🦉</Text>
+          <Image
+            source={require('@/assets/images/app-logo.png')}
+            style={styles.mascotImage}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Instruction */}
@@ -101,8 +105,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 20,
   },
-  mascot: {
-    fontSize: 140,
+  mascotImage: {
+    width: 280,
+    height: 200,
   },
   instructionContainer: {
     alignItems: 'center',
