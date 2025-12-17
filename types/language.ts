@@ -19,6 +19,8 @@ export interface Letter {
     image: string; // Using emoji or placeholder for now
     word: string;
     audioFile?: string;
+    solidImage?: any;  // Thick letter outline for coloring
+    hintImage?: any;   // Dotted guide overlay
 }
 
 export interface Language {

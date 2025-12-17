@@ -58,7 +58,7 @@ export const languages: Language[] = [
         icon: '🤴', // Using king as icon
         letters: [
             // -------- VOWELS --------
-            { character: 'ಅ', strokes: getLetterStrokes('ಅ'), image: '👩', word: 'AMMA' },
+            { character: 'ಅ', strokes: getLetterStrokes('ಅ'), image: '👩', word: 'AMMA', solidImage: require('../assets/images/solid_A.png'), hintImage: require('../assets/images/hint_A.png') },
             { character: 'ಆ', strokes: getLetterStrokes('ಆ'), image: '🐘', word: 'AANE' },
             { character: 'ಇ', strokes: getLetterStrokes('ಇ'), image: '🐀', word: 'ILI' },
             { character: 'ಈ', strokes: getLetterStrokes('ಈ'), image: '🪶', word: 'EEGA' },

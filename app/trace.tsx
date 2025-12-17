@@ -1,3 +1,4 @@
+import { LetterCanvas } from '@/components/LetterCanvas';
 import { ProgressBar } from '@/components/ProgressBar';
 import { TracingCanvas } from '@/components/TracingCanvas';
 import { colors } from '@/constants/colors';
@@ -90,11 +91,19 @@ export default function TraceScreen() {
 
             {/* Tracing Canvas */}
             <View style={styles.canvasContainer}>
-                <TracingCanvas
-                    key={`${currentLetter.character}-${resetKey}`}
-                    letter={currentLetter}
-                    onComplete={handleComplete}
-                />
+                {currentLetter.solidImage ? (
+                    <LetterCanvas
+                        key={`${currentLetter.character}-${resetKey}`}
+                        letter={currentLetter}
+                        onComplete={handleComplete}
+                    />
+                ) : (
+                    <TracingCanvas
+                        key={`${currentLetter.character}-${resetKey}`}
+                        letter={currentLetter}
+                        onComplete={handleComplete}
+                    />
+                )}
             </View>
 
             {/* Bottom Actions */}
