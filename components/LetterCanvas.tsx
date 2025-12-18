@@ -1,13 +1,16 @@
-import * as Haptics from 'expo-haptics';
-import React, { useState } from 'react';
-import { Dimensions, Image, StyleSheet, Text, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Path } from 'react-native-svg';
+import React, { useRef, useState } from 'react';
+import { Dimensions, PanResponder, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Svg, { Path, Image as SvgImage } from 'react-native-svg';
 import { colors } from '../constants/colors';
-import { Letter } from '../types/language';
+import { Letter, StrokePoint } from '../types/language';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CANVAS_SIZE = SCREEN_WIDTH * 0.85;
+const SVG_WIDTH = 300;
+const SVG_HEIGHT = 300;
+const BOUNDARY_THRESHOLD = 90; // Forgiving enough for smooth tracing, strict enough to prevent scribbling
+const COMPLETION_THRESHOLD = 0.95; // Need 95% coverage to complete (strict)
 
 interface LetterCanvasProps {
     letter: Letter;
@@ -16,96 +19,194 @@ interface LetterCanvasProps {
 
 export const LetterCanvas: React.FC<LetterCanvasProps> = ({ letter, onComplete }) => {
     const [paths, setPaths] = useState<string[]>([]);
-    const [currentPath, setCurrentPath] = useState<string>('');
+    const currentPath = useRef('');
+    const shakeOffset = useSharedValue(0);
+    const [coveredPoints, setCoveredPoints] = useState<Set<number>>(new Set());
+    const [isComplete, setIsComplete] = useState(false);
+    const isDrawing = useRef(false); // Track if currently drawing
 
-    const pan = Gesture.Pan()
-        .onBegin((event) => {
-            const newPath = `M ${event.x} ${event.y}`;
-            setCurrentPath(newPath);
-        })
-        .onUpdate((event) => {
-            if (currentPath) {
-                setCurrentPath(currentPath + ` L ${event.x} ${event.y}`);
+    // Get all stroke points for validation
+    const getAllStrokePoints = (): StrokePoint[] => {
+        const allPoints: StrokePoint[] = [];
+        letter.strokes.forEach(stroke => {
+            allPoints.push(...stroke.points);
+        });
+        return allPoints;
+    };
+
+    const allValidPoints = getAllStrokePoints();
+
+    // Calculate distance between two points
+    const distance = (p1: { x: number; y: number }, p2: { x: number; y: number }): number => {
+        return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+    };
+
+    // Calculate distance from point to line segment
+    const distanceToSegment = (p: { x: number; y: number }, a: StrokePoint, b: StrokePoint): number => {
+        const l2 = Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2);
+        if (l2 === 0) return distance(p, a);
+        let t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return distance(p, { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) });
+    };
+
+    // Check if point is within letter boundaries
+    const isPointValid = (x: number, y: number): boolean => {
+        // Convert screen coordinates to SVG coordinates
+        const svgX = (x / CANVAS_SIZE) * SVG_WIDTH;
+        const svgY = (y / CANVAS_SIZE) * SVG_HEIGHT;
+        const point = { x: svgX, y: svgY };
+
+        // Check if near any stroke segment
+        for (let i = 0; i < allValidPoints.length - 1; i++) {
+            if (distanceToSegment(point, allValidPoints[i], allValidPoints[i + 1]) < BOUNDARY_THRESHOLD) {
+                return true;
             }
-        })
-        .onEnd(() => {
-            if (currentPath) {
-                setPaths([...paths, currentPath]);
-                setCurrentPath('');
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+        return false;
+    };
+
+    const handleMistake = () => {
+        // Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        shakeOffset.value = withSequence(
+            withTiming(-10, { duration: 50 }),
+            withTiming(10, { duration: 50 }),
+            withTiming(-10, { duration: 50 }),
+            withTiming(10, { duration: 50 }),
+            withTiming(0, { duration: 50 })
+        );
+    };
+
+    // Mark nearby points as covered
+    const markPointsCovered = (x: number, y: number) => {
+        const svgX = (x / CANVAS_SIZE) * SVG_WIDTH;
+        const svgY = (y / CANVAS_SIZE) * SVG_HEIGHT;
+        const point = { x: svgX, y: svgY };
+
+        const newCovered = new Set(coveredPoints);
+        let anyAdded = false;
+
+        // Mark all points within threshold as covered
+        allValidPoints.forEach((validPoint, index) => {
+            if (distance(point, validPoint) < BOUNDARY_THRESHOLD) {
+                if (!newCovered.has(index)) {
+                    newCovered.add(index);
+                    anyAdded = true;
+                }
             }
         });
 
+        if (anyAdded) {
+            setCoveredPoints(newCovered);
+
+            // Check completion (disabled for now)
+            const coverage = newCovered.size / allValidPoints.length;
+            if (coverage >= COMPLETION_THRESHOLD && !isComplete) {
+                setIsComplete(true);
+                // Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                // Celebration disabled for now
+                // setTimeout(() => {
+                //     onComplete();
+                // }, 500);
+            }
+        }
+    };
+
+    const panResponder = PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onPanResponderGrant: (e) => {
+            const { locationX, locationY } = e.nativeEvent;
+
+            // Validate starting point
+            if (!isPointValid(locationX, locationY)) {
+                handleMistake();
+                isDrawing.current = false;
+                return;
+            }
+
+            isDrawing.current = true;
+            currentPath.current = `M${locationX},${locationY}`;
+            setPaths(p => [...p, currentPath.current]);
+            // Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        },
+        onPanResponderMove: (e) => {
+            // Don't continue if not drawing
+            if (!isDrawing.current) return;
+
+            const { locationX, locationY } = e.nativeEvent;
+
+            // Validate each point during movement
+            if (!isPointValid(locationX, locationY)) {
+                handleMistake();
+                // Stop this drawing session
+                isDrawing.current = false;
+                // Don't modify paths - keep what was valid
+                return;
+            }
+
+            // Only mark points as covered if they are valid
+            markPointsCovered(locationX, locationY);
+
+            currentPath.current += ` L${locationX},${locationY}`;
+            setPaths(p => {
+                const copy = [...p];
+                if (copy.length > 0) {
+                    copy[copy.length - 1] = currentPath.current;
+                }
+                return copy;
+            });
+        },
+        onPanResponderRelease: () => {
+            isDrawing.current = false;
+            // Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+    });
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: shakeOffset.value }],
+    }));
+
     return (
         <View style={styles.container}>
-            <View style={styles.canvasWrapper}>
-                <GestureDetector gesture={pan}>
-                    <View style={styles.canvas}>
-                        {/* Layer 1: Solid letter outline (base image) */}
+            <Animated.View style={[styles.canvasWrapper, animatedStyle]}>
+                <View style={styles.canvas} {...panResponder.panHandlers}>
+                    <Svg width={CANVAS_SIZE} height={CANVAS_SIZE}>
+                        {/* Layer 1: Solid letter outline (base) */}
                         {letter.solidImage && (
-                            <Image
-                                source={letter.solidImage}
-                                style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    width: CANVAS_SIZE,
-                                    height: CANVAS_SIZE,
-                                }}
-                                resizeMode="contain"
+                            <SvgImage
+                                href={letter.solidImage}
+                                width="100%"
+                                height="100%"
+                                preserveAspectRatio="xMidYMid meet"
                             />
                         )}
 
-                        {/* Layer 2: Hint overlay (optional) */}
+                        {/* Layer 2: Hint overlay (dotted guide) */}
                         {letter.hintImage && (
-                            <Image
-                                source={letter.hintImage}
-                                style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    width: CANVAS_SIZE,
-                                    height: CANVAS_SIZE,
-                                    opacity: 0.6,
-                                }}
-                                resizeMode="contain"
+                            <SvgImage
+                                href={letter.hintImage}
+                                width="100%"
+                                height="100%"
+                                preserveAspectRatio="xMidYMid meet"
+                                opacity={0.6}
                             />
                         )}
 
-                        {/* Layer 3: SVG for user drawing */}
-                        <Svg
-                            width={CANVAS_SIZE}
-                            height={CANVAS_SIZE}
-                            style={StyleSheet.absoluteFillObject}
-                        >
-                            {/* Completed user strokes */}
-                            {paths.map((path, index) => (
-                                <Path
-                                    key={`path-${index}`}
-                                    d={path}
-                                    stroke={colors.orange}
-                                    strokeWidth={20}
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    fill="none"
-                                />
-                            ))}
-
-                            {/* Current drawing stroke */}
-                            {currentPath && (
-                                <Path
-                                    d={currentPath}
-                                    stroke={colors.orange}
-                                    strokeWidth={20}
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    fill="none"
-                                />
-                            )}
-                        </Svg>
-                    </View>
-                </GestureDetector>
-            </View>
+                        {/* Layer 3: User drawing paths */}
+                        {paths.map((d, i) => (
+                            <Path
+                                key={i}
+                                d={d}
+                                stroke={colors.orange}
+                                strokeWidth={20}
+                                fill="none"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            />
+                        ))}
+                    </Svg>
+                </View>
+            </Animated.View>
 
             {/* Bottom Info */}
             <View style={styles.bottomInfoContainer}>
@@ -125,7 +226,7 @@ export const LetterCanvas: React.FC<LetterCanvasProps> = ({ letter, onComplete }
                     <Text style={styles.hintText}>Color It!</Text>
                 </View>
             </View>
-        </View>
+        </View >
     );
 };
 

@@ -703,6 +703,26 @@ export const letterStrokePaths: Record<string, Stroke[]> = {
     'ಔ': [
         { id: 1, points: [{ x: 150, y: 250 }, { x: 100, y: 200 }, { x: 150, y: 150 }, { x: 150, y: 100 }, { x: 200, y: 50 }], startPoint: { x: 150, y: 250 } }
     ],
+    'ಅಂ': [ // AMM - Anusvara
+        {
+            id: 1,
+            points: [
+                { x: 100, y: 100 },
+                { x: 200, y: 200 },
+            ],
+            startPoint: { x: 100, y: 100 },
+        },
+    ],
+    'ಅಃ': [ // AHA - Visarga
+        {
+            id: 1,
+            points: [
+                { x: 100, y: 100 },
+                { x: 200, y: 200 },
+            ],
+            startPoint: { x: 100, y: 100 },
+        },
+    ],
 };
 
 // Helper function to get strokes for a letter
