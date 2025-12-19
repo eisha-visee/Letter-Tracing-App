@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     canvas: {
         width: CANVAS_SIZE,
         height: CANVAS_SIZE,
-        backgroundColor: 'rgba(255, 255, 255, 0.98)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 30,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 8 },
