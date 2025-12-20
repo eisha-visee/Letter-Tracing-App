@@ -9,7 +9,7 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const CANVAS_SIZE = SCREEN_WIDTH * 0.85;
 const SVG_WIDTH = 300;
 const SVG_HEIGHT = 300;
-const BOUNDARY_THRESHOLD = 90; // Forgiving enough for smooth tracing, strict enough to prevent scribbling
+const BOUNDARY_THRESHOLD = 120; // Increased for smoother tracing experience
 const COMPLETION_THRESHOLD = 0.95; // Need 95% coverage to complete (strict)
 
 interface LetterCanvasProps {
@@ -119,9 +119,9 @@ export const LetterCanvas: React.FC<LetterCanvasProps> = ({ letter, onComplete }
 
             // Validate starting point
             if (!isPointValid(locationX, locationY)) {
-                handleMistake();
-                isDrawing.current = false;
-                return;
+                // handleMistake();
+                // isDrawing.current = false;
+                // return;
             }
 
             isDrawing.current = true;
@@ -137,10 +137,7 @@ export const LetterCanvas: React.FC<LetterCanvasProps> = ({ letter, onComplete }
 
             // Validate each point during movement
             if (!isPointValid(locationX, locationY)) {
-                handleMistake();
-                // Stop this drawing session
-                isDrawing.current = false;
-                // Don't modify paths - keep what was valid
+                // Just ignore invalid points - don't stop drawing, don't shake
                 return;
             }
 
